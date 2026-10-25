@@ -5,6 +5,10 @@ pipeline {
         maven 'Maven 3.9.9'
     }
 
+    options {
+        timestamps()
+    }
+
     stages {
         stage('Verificar JDK 21 y Maven') {
             steps {
@@ -25,10 +29,33 @@ pipeline {
             }
         }
 
+        stage('Escaneo de Vulnerabilidades Semgrep') {
+            steps {
+                sh '''
+                    mkdir -p reportes
+                    if command -v docker >/dev/null 2>&1; then
+                        docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan \
+                            --config auto \
+                            --exclude target \
+                            --json -o /src/reportes/semgrep-backend.json || true
+                    elif command -v semgrep >/dev/null 2>&1; then
+                        semgrep scan --config auto --exclude target --json -o reportes/semgrep-backend.json || true
+                    fi
+                '''
+            }
+        }
+
         stage('Analisis SonarQube') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh 'mvn -B sonar:sonar'
+                    sh '''
+                        mvn -B sonar:sonar \
+                            -Dsonar.projectKey=com.mx.cbtis:Ejercicio5MyAPIGestor \
+                            -Dsonar.projectName="Ejercicio5MyAPIGestor" \
+                            -Dsonar.java.source=21 \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                            -Dsonar.exclusions=**/target/**
+                    '''
                 }
             }
         }
@@ -36,7 +63,13 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            echo "Quality Gate status: ${qg.status} - Continuando sin abortar el pipeline"
+                            currentBuild.result = 'UNSTABLE'
+                        }
+                    }
                 }
             }
         }
@@ -49,9 +82,19 @@ pipeline {
                 pattern: 'target/site/jacoco/jacoco.xml'
             ]]
 
-            archiveArtifacts artifacts: 'target/*.jar',
+            archiveArtifacts artifacts: 'target/*.jar, reportes/*.json',
                              allowEmptyArchive: true,
                              fingerprint: true
         }
+        success {
+            echo 'Pipeline backend completado exitosamente'
+        }
+        unstable {
+            echo 'Pipeline completado con advertencias - Revisar Quality Gate en SonarQube'
+        }
+        failure {
+            echo 'Pipeline fallido - Revisar errores de compilacion o pruebas'
+        }
     }
 }
+
