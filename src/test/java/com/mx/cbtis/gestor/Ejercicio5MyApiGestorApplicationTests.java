@@ -10,6 +10,7 @@ class Ejercicio5MyApiGestorApplicationTests {
 
 	@Test
 	void contextLoads() {
+		org.junit.jupiter.api.Assertions.assertNotNull(this);
 	}
 
 }
