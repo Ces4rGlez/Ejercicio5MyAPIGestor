@@ -5,7 +5,6 @@ pipeline {
         maven 'Maven 3.9.9'
     }
 
-
     stages {
         stage('Verificar JDK 21 y Maven') {
             steps {
@@ -20,33 +19,11 @@ pipeline {
             }
         }
 
-        stage('Compilar y probar backend') {
-            steps {
-                sh 'mvn -B clean verify'
-            }
-        }
-
-        stage('Escaneo de Vulnerabilidades Semgrep') {
-            steps {
-                sh '''
-                    mkdir -p reportes
-                    if command -v docker >/dev/null 2>&1; then
-                        docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan \
-                            --config auto \
-                            --exclude target \
-                            --json -o /src/reportes/semgrep-backend.json || true
-                    elif command -v semgrep >/dev/null 2>&1; then
-                        semgrep scan --config auto --exclude target --json -o reportes/semgrep-backend.json || true
-                    fi
-                '''
-            }
-        }
-
-        stage('Analisis SonarQube') {
+        stage('Compilar, Probar y Analizar Backend') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh '''
-                        mvn -B sonar:sonar \
+                        mvn -B clean verify sonar:sonar \
                             -Dsonar.projectKey=com.mx.cbtis:Ejercicio5MyAPIGestor \
                             -Dsonar.projectName="Ejercicio5MyAPIGestor" \
                             -Dsonar.java.source=21 \
@@ -57,14 +34,35 @@ pipeline {
             }
         }
 
+        stage('Escaneo de Vulnerabilidades Semgrep') {
+            steps {
+                sh '''
+                    mkdir -p reportes
+                    if command -v semgrep >/dev/null 2>&1; then
+                        semgrep scan --config auto --exclude target \
+                            --json -o reportes/semgrep-backend.json || true
+                    elif command -v docker >/dev/null 2>&1; then
+                        docker run --rm -v "$(pwd):/src" returntocorp/semgrep semgrep scan \
+                            --config auto \
+                            --exclude target \
+                            --json -o /src/reportes/semgrep-backend.json || true
+                    else
+                        echo "[]" > reportes/semgrep-backend.json
+                    fi
+                '''
+            }
+        }
+
         stage('Quality Gate') {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
                     script {
                         def qg = waitForQualityGate()
                         if (qg.status != 'OK') {
-                            echo "Quality Gate status: ${qg.status} - Continuando sin abortar el pipeline"
+                            echo "Quality Gate status: ${qg.status} - Marcando como UNSTABLE"
                             currentBuild.result = 'UNSTABLE'
+                        } else {
+                            echo "Quality Gate PASSED"
                         }
                     }
                 }
@@ -78,6 +76,12 @@ pipeline {
                 parser: 'JACOCO',
                 pattern: 'target/site/jacoco/jacoco.xml'
             ]]
+
+            recordIssues(
+                enabledForFailure: true,
+                aggregatingResults: true,
+                tools: [semgrep(pattern: 'reportes/semgrep-backend.json')]
+            )
 
             archiveArtifacts artifacts: 'target/*.jar, reportes/*.json',
                              allowEmptyArchive: true,
@@ -94,4 +98,3 @@ pipeline {
         }
     }
 }
-
