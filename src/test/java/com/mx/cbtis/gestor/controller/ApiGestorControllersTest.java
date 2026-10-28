@@ -33,6 +33,21 @@ public class ApiGestorControllersTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private com.mx.cbtis.gestor.repository.UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private com.mx.cbtis.gestor.repository.ProtectosRepository proyectosRepository;
+
+    @Autowired
+    private com.mx.cbtis.gestor.repository.TareasRepository tareasRepository;
+
+    @Autowired
+    private com.mx.cbtis.gestor.repository.AsignacionesRepository asignacionesRepository;
+
+    @Autowired
+    private com.mx.cbtis.gestor.repository.ComentariosRepository comentariosRepository;
+
     // ==========================================
     // USUARIO CONTROLLER TESTS
     // ==========================================
@@ -54,13 +69,17 @@ public class ApiGestorControllersTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("1"));
 
+        // Guardar entidad para buscar por id existente
+        Usuario savedUser = usuarioRepository.save(new Usuario(null, "Mario", "mario_buscar@mail.com", "pass_buscar", "DEV", "mario.png"));
+
         // 2. buscarUsuarios
         mockMvc.perform(post("/buscarUsuarios"))
                 .andExpect(status().isOk());
 
-        // 3. buscarUsuario por id
-        mockMvc.perform(get("/buscarUsuario").param("id", "100"))
-                .andExpect(status().isOk());
+        // 3. buscarUsuario por id existente
+        mockMvc.perform(get("/buscarUsuario").param("id", String.valueOf(savedUser.getId_usuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Mario"));
 
         // 4. buscarUsuario inexistente
         mockMvc.perform(get("/buscarUsuario").param("id", "9999"))
@@ -123,13 +142,17 @@ public class ApiGestorControllersTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("1"));
 
+        // Guardar entidad para buscar por id existente
+        Proyectos savedP = proyectosRepository.save(new Proyectos(null, "Portal CI/CD", "Sistema de pipelines", "2026-01-01", "2026-12-31", "ACTIVO", "#ffffff"));
+
         // 2. buscarProyectos
         mockMvc.perform(post("/buscarProyectos"))
                 .andExpect(status().isOk());
 
         // 3. buscarProyecto por id
-        mockMvc.perform(get("/buscarProyecto").param("id_proyecto", "200"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/buscarProyecto").param("id_proyecto", String.valueOf(savedP.getId_proyecto())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Portal CI/CD"));
 
         // 4. buscarProyecto inexistente
         mockMvc.perform(get("/buscarProyecto").param("id_proyecto", "9999"))
@@ -173,13 +196,17 @@ public class ApiGestorControllersTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("1"));
 
+        // Guardar entidad para buscar por id existente
+        Tareas savedT = tareasRepository.save(new Tareas(null, "Desplegar Microservicios", "Despliegue automatizado", "2026-06-30", "Backlog", "EN_PROCESO", 200));
+
         // 2. buscarTareas
         mockMvc.perform(post("/buscarTareas"))
                 .andExpect(status().isOk());
 
         // 3. buscarTarea por id
-        mockMvc.perform(get("/buscarTarea").param("id_tarea", "300"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/buscarTarea").param("id_tarea", String.valueOf(savedT.getId_tarea())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Desplegar Microservicios"));
 
         // 4. buscarTarea inexistente
         mockMvc.perform(get("/buscarTarea").param("id_tarea", "9999"))
@@ -228,13 +255,17 @@ public class ApiGestorControllersTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("1"));
 
+        // Guardar entidad para buscar por id existente
+        Asignaciones savedA = asignacionesRepository.save(new Asignaciones(null, 100, 300, "2026-04-15"));
+
         // 2. buscarAsignaciones
         mockMvc.perform(post("/buscarAsignaciones"))
                 .andExpect(status().isOk());
 
         // 3. buscarAsignacion por id
-        mockMvc.perform(get("/buscarAsignacion").param("id", "400"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/buscarAsignacion").param("id", String.valueOf(savedA.getId_asignacion())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id_usuario").value(100));
 
         // 4. buscarAsignacion inexistente
         mockMvc.perform(get("/buscarAsignacion").param("id", "9999"))
@@ -275,13 +306,17 @@ public class ApiGestorControllersTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("1"));
 
+        // Guardar entidad para buscar por id existente
+        Comentarios savedC = comentariosRepository.save(new Comentarios(null, "100", 300, "Comentario de prueba QA", "2026-04-16"));
+
         // 2. buscarComentarios
         mockMvc.perform(post("/buscarComentarios"))
                 .andExpect(status().isOk());
 
         // 3. buscarComentario por id
-        mockMvc.perform(get("/buscarComentario").param("id", "500"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/buscarComentario").param("id", String.valueOf(savedC.getId_comentario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.texto_comentario").value("Comentario de prueba QA"));
 
         // 4. buscarComentario inexistente
         mockMvc.perform(get("/buscarComentario").param("id", "9999"))
