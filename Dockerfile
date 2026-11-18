@@ -11,4 +11,4 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 ENV PORT=8081
 EXPOSE 8081
-ENTRYPOINT ["sh", "-c", "java -XX:+UseSerialGC -Xss512k -XX:MaxRAMPercentage=75.0 -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Xms128m -Xmx256m -Xss256k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -jar app.jar"]
